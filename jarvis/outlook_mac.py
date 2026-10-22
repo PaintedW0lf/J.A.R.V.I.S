@@ -77,8 +77,13 @@ def status():
     if time.time() - _cache["t"] < 60 and _cache["val"]:
         return _cache["val"]
     try:
-        out = _run('tell application "Microsoft Outlook" to return (count of messages of inbox) as text', timeout=45)
-        val = {"state": "connected", "account": f"Outlook on this Mac ({out.strip()} messages in Inbox)"}
+        out = _run('tell application "Microsoft Outlook" to return ((count of exchange accounts) as text) & "," & ((count of messages of inbox) as text)', timeout=45)
+        acc, n = (out.strip().split(",") + ["0"])[:2]
+        if acc.strip() == "0":
+            val = {"state": "error", "message": "Outlook is open, but it isn't sharing your IBM mailbox with scripts (0 accounts visible). "
+                   "This is how the New Outlook behaves. Turn off the New Outlook switch if IBM allows, otherwise use the file import."}
+        else:
+            val = {"state": "connected", "account": f"Outlook on this Mac ({n.strip()} messages in Inbox)"}
     except MacOutlookError as e:
         val = {"state": "error", "message": str(e)}
     _cache.update(t=time.time(), val=val)
