@@ -56,7 +56,9 @@ def complete(system, messages, max_tokens=1200, temperature=0.3):
     except httpx.HTTPError as e:
         raise AIError(f"Couldn't reach the AI service at {base}: {e}") from e
     if r.status_code == 401 or r.status_code == 403:
-        raise AIError("The AI service rejected the key. Check the key and auth style in Settings.")
+        detail = (r.text or "").strip().replace("\n", " ")[:200]
+        raise AIError(f"The AI service said {r.status_code} at {url}: {detail or 'no details'}. "
+                      "Check the key, the 'Key goes in' choice and the base URL.")
     if r.status_code >= 400:
         raise AIError(f"AI service error {r.status_code}: {r.text[:300]}")
     data = r.json()
