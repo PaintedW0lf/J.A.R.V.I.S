@@ -298,6 +298,13 @@ dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var
   <div class="help" id="s-ol-help"></div>
   <div class="act-row"><button class="primary" type="button" id="s-ol-connect">Connect Outlook</button><button type="button" id="s-ol-out">Disconnect</button><span class="result" id="s-ol-result"></span></div>
 
+  <h4>Jarvis's voice</h4>
+  <label for="s-voice">Voice</label><select id="s-voice"></select>
+  <label for="s-pitch">Depth (lower = deeper)</label><input id="s-pitch" type="range" min="0.4" max="1.2" step="0.05">
+  <label for="s-rate">Speed</label><input id="s-rate" type="range" min="0.7" max="1.3" step="0.05">
+  <div class="help">These are the voices installed on your Mac. For a deeper, more natural voice, open System Settings → Accessibility → Spoken Content → System Voice → Manage Voices, download one (try "Daniel", "Alex" or any "Premium" or "Enhanced" voice), then reload this page.</div>
+  <div class="act-row"><button type="button" id="s-voice-test">Hear it</button></div>
+
   <h4>IBM portals</h4>
   <div class="help">Save or print each page, then drop the file here or into your IBM drop folder: <span id="s-folder"></span>. Name files with goals, myscore, learning or queue so Jarvis knows which page they are.</div>
   <div class="drop" id="drop">Drop PDF, HTML, TXT, CSV or XLSX files here, or <button type="button" id="pick" style="color:var(--arc);text-decoration:underline">choose files</button><input type="file" id="file" multiple hidden accept=".pdf,.html,.htm,.mhtml,.txt,.csv,.xlsx,.json"></div>
@@ -456,12 +463,18 @@ async function load(){
 
 /* ---------- speech out ---------- */
 let voiceOn = true;
+const VP = () => { try { return JSON.parse(localStorage.getItem('jarvisVoice')||'{}'); } catch { return {}; } };
+function pickVoice(){
+  const vs = speechSynthesis.getVoices(), p = VP();
+  return vs.find(v => v.name === p.name) || vs.find(v => /Daniel|UK English Male|en-GB/i.test(v.name+v.lang));
+}
 function speak(text){
   if (!voiceOn || !('speechSynthesis' in window)) return;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  const v = speechSynthesis.getVoices().find(v => /Daniel|UK English Male|en-GB/i.test(v.name+v.lang));
-  if (v) u.voice = v; u.rate = 1.02; u.pitch = .95;
+  const u = new SpeechSynthesisUtterance(text), p = VP();
+  const v = pickVoice();
+  if (v) u.voice = v;
+  u.rate = p.rate || 1.0; u.pitch = p.pitch || .8;
   speechSynthesis.speak(u);
 }
 function say(userText, text, agents){
@@ -562,7 +575,7 @@ async function openSettings(){
   $('#s-vips').value = (s.vips||[]).join(', '); $('#s-bmail').checked = !!s.brief_email; $('#s-email').value = s.email || '';
   $('#s-folder').textContent = s.drop_folder_resolved;
   stateLabel('#s-ai-state', s.ai_ready, s.ai_ready ? 'Ready' : 'Not set up');
-  refreshOutlook(); refreshFiles();
+  refreshOutlook(); refreshFiles(); fillVoices();
   $('#settings').showModal();
 }
 function stateLabel(sel, on, text, warn){ const el=$(sel); el.classList.toggle('on',!!on); el.classList.toggle('warn',!!warn); el.innerHTML = '<i></i>' + esc(text); }
@@ -590,6 +603,18 @@ $('#s-ai-save').onclick = async () => {
     stateLabel('#s-ai-state', t.ok, t.ok ? 'Ready' : 'Not working', !t.ok);
   } catch(e){ $('#s-ai-result').textContent = e.message; }
 };
+
+function fillVoices(){
+  const sel = $('#s-voice'); if (!sel || !('speechSynthesis' in window)) return;
+  const p = VP(), vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+  sel.innerHTML = vs.map(v => `<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+  const cur = pickVoice(); if (cur) sel.value = cur.name;
+  $('#s-pitch').value = p.pitch || .8; $('#s-rate').value = p.rate || 1.0;
+}
+function saveVoice(){ localStorage.setItem('jarvisVoice', JSON.stringify({name:$('#s-voice').value, pitch:+$('#s-pitch').value, rate:+$('#s-rate').value})); }
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = fillVoices;
+['#s-voice','#s-pitch','#s-rate'].forEach(id => { const el=$(id); if (el) el.onchange = saveVoice; });
+$('#s-voice-test').onclick = () => { saveVoice(); const was=voiceOn; voiceOn=true; speak("Good morning, Vanshika. Everything is under control."); voiceOn=was; };
 
 let olPoll = 0;
 function olModeUI(){
