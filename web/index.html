@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S.</title>
+<style>
+:root{
+  --abyss:#06141F; --panel:#0C2433; --line:#1B3F52;
+  --arc:#5FE3F5; --arc-dim:rgba(95,227,245,.16);
+  --gold:#F2B544; --gold-dim:rgba(242,181,68,.14);
+  --ice:#9CC3D1; --text:#E8F7FB;
+  --display:"Futura","Futura PT","Century Gothic","Avenir Next",sans-serif;
+  --body:"Avenir Next","Avenir","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 42%, rgba(95,227,245,.07), transparent 70%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(95,227,245,.025) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(95,227,245,.025) 39px 40px),
+    var(--abyss);
+  color:var(--text); font:15px/1.5 var(--body);
+  display:grid; grid-template-rows:auto 1fr auto; min-height:100vh;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--arc);outline-offset:2px;border-radius:4px}
+
+/* Top bar */
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px 6px;gap:16px;flex-wrap:wrap}
+.wordmark{font:500 22px/1 var(--display);letter-spacing:.42em;color:var(--arc)}
+.wordmark small{display:block;font:400 12px/1.4 var(--body);letter-spacing:0;color:var(--ice);margin-top:6px}
+.clock{font:300 28px/1 var(--display);letter-spacing:.06em;text-align:right}
+.clock small{display:block;font:12px var(--body);color:var(--ice);letter-spacing:0;margin-top:4px}
+
+/* Main grid */
+main{display:grid;grid-template-columns:minmax(260px,1fr) minmax(340px,1.15fr) minmax(260px,1fr);gap:22px;padding:14px 28px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+section.panel{
+  background:linear-gradient(180deg,rgba(12,36,51,.85),rgba(12,36,51,.55));
+  border:1px solid var(--line); border-radius:3px 14px 3px 14px;
+  padding:16px 18px; position:relative;
+}
+section.panel::before{content:"";position:absolute;left:-1px;top:14px;width:3px;height:22px;background:var(--arc)}
+section.panel.urgent::before{background:var(--gold)}
+h2{font:500 16px/1.2 var(--display);letter-spacing:.04em;margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline}
+h2 .count{font:400 13px var(--body);color:var(--ice)}
+.brief p{color:var(--ice);max-width:60ch}
+.brief p strong{color:var(--text);font-weight:500}
+
+ul.items{list-style:none;display:flex;flex-direction:column}
+ul.items li{padding:9px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center}
+ul.items li:first-child{border-top:0}
+.who{font-weight:500}
+.what{color:var(--ice);font-size:13.5px;grid-column:1}
+.meta{color:var(--ice);font-size:12px;grid-column:2;grid-row:1;text-align:right}
+.act{grid-column:2;grid-row:2;font-size:13px;color:var(--arc);padding:2px 0}
+.act:hover{text-decoration:underline}
+.urgent .act{color:var(--gold)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-right:7px;vertical-align:1px}
+
+/* Calendar */
+.timeline li{grid-template-columns:52px 1fr auto!important}
+.timeline .t{font:400 13px var(--display);color:var(--ice);grid-row:1/3}
+.timeline .who,.timeline .what{grid-column:2}
+.timeline .act,.timeline .meta{grid-column:3}
+.timeline li.free .who{color:var(--arc);font-weight:400}
+.timeline li.conflict .who::after{content:" overlaps";color:var(--gold);font-size:12px;font-weight:400}
+
+/* Goals */
+.goal{padding:9px 0;border-top:1px solid var(--line)}
+.goal:first-of-type{border-top:0}
+.goal .row{display:flex;justify-content:space-between;gap:8px}
+.goal .pct{font:400 14px var(--display)}
+.bar{height:4px;background:var(--line);border-radius:2px;margin:7px 0 5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--arc)}
+.goal.behind .bar i{background:var(--gold)}
+.goal .next{font-size:13px;color:var(--ice)}
+.goal .next b{color:var(--text);font-weight:500}
+.source{font-size:12px;color:var(--ice);margin-top:8px;opacity:.8}
+
+/* Reactor */
+.stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+.reactor-wrap{position:relative;width:min(100%,420px);aspect-ratio:1}
+svg.reactor{width:100%;height:100%;overflow:visible}
+.ring{fill:none;stroke:var(--arc);transform-origin:210px 210px}
+.spin-a{animation:spin 60s linear infinite}
+.spin-b{animation:spin 90s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.core{transition:r .3s}
+body.listening .core-glow{animation:pulse 1s ease-in-out infinite}
+body.thinking .spin-a{animation-duration:6s}
+@keyframes pulse{50%{opacity:.35;r:92}}
+.agent{cursor:default}
+.agent circle{fill:var(--abyss);stroke:var(--line);stroke-width:1.5;transition:stroke .3s,fill .3s}
+.agent text{fill:var(--ice);font:12px var(--body);text-anchor:middle;transition:fill .3s}
+.agent.on circle{stroke:var(--arc);fill:#0f3446}
+.agent.on text{fill:var(--text)}
+.link{stroke:var(--line);stroke-width:1;transition:stroke .3s}
+.link.on{stroke:var(--arc)}
+.status{font:400 14px var(--display);color:var(--ice);text-align:center;min-height:21px;letter-spacing:.03em}
+
+.reply{width:100%;max-width:520px;min-height:64px;border-left:2px solid var(--arc);padding:4px 0 4px 14px;color:var(--text);font-size:15.5px;max-height:240px;overflow:auto}
+.reply .you{color:var(--ice);font-size:13px;margin-bottom:4px}
+
+/* Command bar */
+footer{padding:14px 28px 22px}
+form.cmd{display:flex;gap:10px;align-items:center;max-width:860px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:28px;padding:6px 6px 6px 20px}
+form.cmd:focus-within{border-color:var(--arc)}
+form.cmd input{flex:1;background:none;border:0;color:var(--text);font:inherit;font-size:15.5px;outline:none;min-width:0}
+form.cmd input::placeholder{color:var(--ice);opacity:.7}
+.mic{width:44px;height:44px;border-radius:50%;border:1px solid var(--arc);display:grid;place-items:center;flex:none}
+.mic svg{width:18px;height:18px;stroke:var(--arc)}
+body.listening .mic{background:var(--arc)}
+body.listening .mic svg{stroke:var(--abyss)}
+.send{padding:0 18px;height:44px;border-radius:22px;background:var(--arc);color:var(--abyss);font-weight:600;flex:none}
+.hints{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.hints button{font-size:13px;color:var(--ice);border:1px solid var(--line);border-radius:14px;padding:3px 12px}
+.hints button:hover{color:var(--text);border-color:var(--arc)}
+.hints button[aria-pressed="true"]{color:var(--abyss);background:var(--arc);border-color:var(--arc)}
+
+/* Draft review */
+dialog{margin:auto;background:var(--panel);color:var(--text);border:1px solid var(--arc);border-radius:3px 16px 3px 16px;padding:22px;width:min(560px,92vw)}
+dialog::backdrop{background:rgba(3,10,16,.75)}
+dialog h3{font:500 18px var(--display);margin-bottom:4px}
+dialog .sub{color:var(--ice);font-size:13px;margin-bottom:12px}
+dialog textarea{width:100%;min-height:170px;background:var(--abyss);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:12px;font:inherit;resize:vertical}
+dialog .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+dialog .btns button{padding:8px 16px;border-radius:18px;border:1px solid var(--line)}
+dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var(--gold);font-weight:600}
+.note{font-size:12px;color:var(--ice);margin-top:10px}
+
+.toast{position:fixed;left:50%;bottom:110px;transform:translate(-50%,20px);opacity:0;background:var(--panel);border:1px solid var(--arc);padding:8px 18px;border-radius:18px;transition:.25s;pointer-events:none;font-size:14px}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1050px){
+  main{grid-template-columns:1fr 1fr}
+  .stage{grid-column:1/-1;order:-1}
+  .reactor-wrap{width:min(100%,340px)}
+}
+@media (max-width:680px){
+  main{grid-template-columns:1fr;padding:10px 14px}
+  header,footer{padding-left:14px;padding-right:14px}
+  .wordmark{letter-spacing:.28em}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+.gear{display:flex;gap:10px;align-items:center}
+.gear button{border:1px solid var(--line);border-radius:16px;padding:4px 14px;font-size:13px;color:var(--ice)}
+.gear button:hover{color:var(--text);border-color:var(--arc)}
+.pill{font-size:12px;color:var(--ice);display:inline-flex;align-items:center;gap:6px}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block}
+.pill.on i{background:var(--arc)} .pill.warn i{background:var(--gold)}
+.tabs{display:flex;gap:4px;margin:-2px 0 8px}
+.tabs button{font-size:12.5px;color:var(--ice);padding:2px 10px;border-radius:12px}
+.tabs button[aria-selected="true"]{background:var(--arc-dim);color:var(--text)}
+.goal .tag{font-size:11.5px;color:var(--ice);border:1px solid var(--line);border-radius:10px;padding:0 7px;margin-left:6px;white-space:nowrap}
+.goal.behind .tag{color:var(--gold);border-color:rgba(242,181,68,.4)}
+.empty{color:var(--ice);font-size:13.5px;padding:6px 0}
+.empty button{color:var(--arc);text-decoration:underline}
+#settings{width:min(640px,94vw);max-height:88vh;overflow:auto}
+#settings h4{font:500 15px var(--display);margin:18px 0 6px;display:flex;justify-content:space-between;align-items:center}
+#settings label{display:block;font-size:13px;color:var(--ice);margin:8px 0 3px}
+#settings input,#settings select{width:100%;background:var(--abyss);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:inherit;font-size:14px}
+#settings .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#settings .help{font-size:12.5px;color:var(--ice);margin-top:6px;line-height:1.45}
+#settings .act-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+#settings .act-row button{padding:6px 14px;border-radius:16px;border:1px solid var(--line);font-size:13.5px}
+#settings .act-row .primary{background:var(--arc);color:var(--abyss);border-color:var(--arc);font-weight:600}
+.code{font:600 22px var(--display);letter-spacing:.18em;color:var(--gold)}
+.result{font-size:13px;color:var(--ice)}
+.drop{border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;color:var(--ice);font-size:13px;margin-top:8px}
+.drop.over{border-color:var(--arc);color:var(--text)}
+.files{font-size:12.5px;color:var(--ice);margin-top:8px;list-style:none}
+.files li{padding:3px 0;border-top:1px solid var(--line)}
+.demo-banner{font-size:12.5px;color:var(--gold);text-align:center;margin-top:-4px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wordmark">J.A.R.V.I.S.<small id="greet">Good morning</small></div>
+  <div class="gear">
+    <span class="pill" id="p-ai"><i></i>AI</span>
+    <span class="pill" id="p-ol"><i></i>Outlook</span>
+    <span class="pill" id="p-ibm"><i></i>IBM</span>
+    <button type="button" id="open-settings">Settings</button>
+  </div>
+  <div class="clock"><span id="time">--:--</span><small id="date"></small></div>
+</header>
+<div class="demo-banner" id="demo-banner" hidden>Demo mode: start Jarvis on your Mac to see your real mail, calendar and goals</div>
+
+<main>
+  <div class="col">
+    <section class="panel brief" aria-labelledby="h-brief">
+      <h2 id="h-brief">Your morning brief <button class="count" id="brief-refresh" type="button">Refresh</button></h2>
+      <p id="brief-text">Preparing your brief…</p>
+    </section>
+    <section class="panel urgent" aria-labelledby="h-needs">
+      <h2 id="h-needs">Needs you <span class="count" id="needs-count"></span></h2>
+      <ul class="items" id="needs"></ul>
+    </section>
+    <section class="panel" aria-labelledby="h-wait">
+      <h2 id="h-wait">Waiting on replies <span class="count" id="wait-count"></span></h2>
+      <ul class="items" id="waiting"></ul>
+    </section>
+  </div>
+
+  <div class="col stage">
+    <div class="reactor-wrap">
+      <svg class="reactor" viewBox="0 0 420 420" role="img" aria-label="Jarvis and its agent team">
+        <defs>
+          <radialGradient id="g" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#E8F7FB"/><stop offset=".35" stop-color="#5FE3F5"/>
+            <stop offset="1" stop-color="#5FE3F5" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <g id="links"></g>
+        <circle class="ring spin-b" cx="210" cy="210" r="150" stroke-width="1" stroke-dasharray="2 9" opacity=".6"/>
+        <circle class="ring spin-a" cx="210" cy="210" r="112" stroke-width="6" stroke-dasharray="40 14" opacity=".35"/>
+        <circle class="ring" cx="210" cy="210" r="92" stroke-width="1" opacity=".5"/>
+        <circle class="core-glow core" cx="210" cy="210" r="80" fill="url(#g)" opacity=".55"/>
+        <circle cx="210" cy="210" r="34" fill="#E8F7FB" opacity=".9"/>
+        <g id="agents"></g>
+      </svg>
+    </div>
+    <div class="status" id="status" aria-live="polite">Standing by</div>
+    <div class="reply" id="reply" aria-live="polite"><div class="you">Jarvis</div><span id="reply-text">Good to see you.</span></div>
+  </div>
+
+  <div class="col">
+    <section class="panel" aria-labelledby="h-cal">
+      <h2 id="h-cal">Today <span class="count" id="cal-count"></span></h2>
+      <ul class="items timeline" id="cal"></ul>
+    </section>
+    <section class="panel" aria-labelledby="h-goals">
+      <h2 id="h-goals">IBM goals and what to do next</h2>
+      <div class="tabs" role="tablist" id="goal-tabs">
+        <button role="tab" aria-selected="true" data-src="">Next up</button>
+        <button role="tab" aria-selected="false" data-src="goals">Goals</button>
+        <button role="tab" aria-selected="false" data-src="myscore">MyScore</button>
+        <button role="tab" aria-selected="false" data-src="learning">Learning</button>
+      </div>
+      <div id="goals"></div>
+      <div class="source" id="ibm-source"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <form class="cmd" id="cmd" autocomplete="off">
+    <button type="button" class="mic" id="mic" aria-label="Speak to Jarvis">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
+    <input id="q" placeholder="Ask Jarvis or tell it what to do" aria-label="Message Jarvis">
+    <button class="send" type="submit">Send</button>
+  </form>
+  <div class="hints" id="hints"><button type="button" id="clap" aria-pressed="false">Clap to wake: off</button></div>
+</footer>
+
+<dialog id="draft">
+  <h3 id="d-title">Reply</h3>
+  <div class="sub">Drafted in your voice. Nothing is sent until you approve it.</div>
+  <textarea id="d-body" aria-label="Draft text"></textarea>
+  <div class="btns">
+    <button type="button" id="d-discard">Discard</button>
+    <button type="button" id="d-save">Save to Outlook drafts</button>
+    <button type="button" class="primary" id="d-send">Approve and send</button>
+  </div>
+  <div class="note" id="d-note"></div>
+</dialog>
+
+<dialog id="settings">
+  <h3>Settings</h3>
+  <div class="sub">Everything stays on this Mac. Your AI key is stored in the macOS Keychain.</div>
+
+  <h4>AI provider <span class="pill" id="s-ai-state"><i></i></span></h4>
+  <div class="row2">
+    <div><label for="s-provider">API style</label>
+      <select id="s-provider"><option value="anthropic">Anthropic (Claude) format</option><option value="openai">OpenAI format</option></select></div>
+    <div><label for="s-auth">Key goes in</label>
+      <select id="s-auth"><option value="x-api-key">x-api-key header</option><option value="bearer">Authorization: Bearer</option></select></div>
+  </div>
+  <label for="s-base">Base URL</label><input id="s-base" placeholder="Paste from your ICA API page">
+  <label for="s-model">Model</label><input id="s-model" placeholder="For example the Claude model name ICA lists">
+  <label for="s-key">API key</label><input id="s-key" type="password" placeholder="Paste your key (leave blank to keep the saved one)">
+  <div class="help">For IBM work data, use your IBM Consulting Advantage key (Claude Advantage Assist or ICA Assist). Copy the base URL, model name and key from the ICA API page. If ICA's example uses <em>/v1/messages</em>, pick Anthropic format; if it uses <em>/chat/completions</em>, pick OpenAI format.</div>
+  <div class="act-row"><button class="primary" type="button" id="s-ai-save">Save and test</button><span class="result" id="s-ai-result"></span></div>
+
+  <h4>Outlook <span class="pill" id="s-ol-state"><i></i></span></h4>
+  <label for="s-client">App (client) ID</label><input id="s-client" placeholder="From the Azure app registration">
+  <label for="s-tenant">Tenant</label><input id="s-tenant" placeholder="organizations">
+  <div class="help">You sign in with your normal IBM account and MFA. IBM may need to approve the app first. See the README section "Connecting IBM Outlook".</div>
+  <div class="act-row"><button class="primary" type="button" id="s-ol-connect">Connect Outlook</button><button type="button" id="s-ol-out">Disconnect</button><span class="result" id="s-ol-result"></span></div>
+
+  <h4>IBM portals</h4>
+  <div class="help">Save or print each page, then drop the file here or into your IBM drop folder: <span id="s-folder"></span>. Name files with goals, myscore, learning or queue so Jarvis knows which page they are.</div>
+  <div class="drop" id="drop">Drop PDF, HTML, TXT, CSV or XLSX files here, or <button type="button" id="pick" style="color:var(--arc);text-decoration:underline">choose files</button><input type="file" id="file" multiple hidden accept=".pdf,.html,.htm,.mhtml,.txt,.csv,.xlsx,.json"></div>
+  <ul class="files" id="s-files"></ul>
+
+  <h4>You</h4>
+  <div class="row2">
+    <div><label for="s-name">Name</label><input id="s-name"></div>
+    <div><label for="s-brief">Morning brief time</label><input id="s-brief" type="time"></div>
+    <div><label for="s-ws">Workday starts</label><input id="s-ws" type="time"></div>
+    <div><label for="s-we">Workday ends</label><input id="s-we" type="time"></div>
+  </div>
+  <label for="s-vips">VIP emails (always "needs you"), comma separated</label><input id="s-vips">
+  <label><input type="checkbox" id="s-bmail" style="width:auto;margin-right:6px">Also email my brief to me each morning</label>
+
+  <div class="btns"><button type="button" id="s-close">Close</button><button type="button" class="primary" id="s-save">Save</button></div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const API = location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8765';
+let LIVE = false, STATE = null, history = [], goalTab = '';
+
+/* ---------- demo data, used when the local server isn't running ---------- */
+const DEMO = {
+  outlook:false, ai:false, name:'Vanshika',
+  brief:"Good morning. Three emails need you, starting with Priya's contract question. Your AZ-900 certification is due in 9 days, and you have a free hour at 2:00 to study. You also have two MyScore credentials marked not met.",
+  needs:[{id:'d1',who:'Priya Shah',subject:'Revised contract: sign by Friday?',task:'Confirm payment terms',due:null},
+         {id:'d2',who:'Marcus Lee',subject:'Thoughts on the Q4 roadmap deck?',task:'Give feedback',due:null}],
+  waiting:[{id:'w1',who:'Daniel (Acme)',subject:'Pricing proposal',days:4}],
+  events:[{start:'2026-10-22T09:30',end:'2026-10-22T09:45',subject:'Team stand-up',overlap:false,attendees:[]},
+          {start:'2026-10-22T11:00',end:'2026-10-22T12:00',subject:'Client review: Acme',overlap:true,attendees:[]},
+          {start:'2026-10-22T11:30',end:'2026-10-22T12:00',subject:'1:1 with manager',overlap:true,attendees:[]}],
+  free:[{start:'14:00',end:'15:00'}],
+  goals:[{source:'goals',title:'AZ-900 certification',status:'In Progress',days_left:9,urgency:'due soon',suggestion:'Use 14:00–15:00 today',detail:''},
+         {source:'myscore',title:'IBM Consulting Gen & Agentic AI',status:'Not Met',days_left:null,urgency:'required, not met',suggestion:'Plan a block this week',detail:'Current: None; Expected: Foundation'},
+         {source:'goals',title:'GenAI Ladder Progression - Experience Badge',status:'Not Started',days_left:22,urgency:'on the list',suggestion:'',detail:''}],
+  ibm_counts:{goals:16,myscore:11,learning:0}
+};
+
+const AGENTS = [{id:'triage',label:'Inbox'},{id:'follow',label:'Follow-ups'},{id:'cal',label:'Calendar'},
+                {id:'draft',label:'Drafting'},{id:'brief',label:'Briefing'},{id:'goals',label:'IBM goals'}];
+
+async function api(path, opts={}){
+  const r = await fetch(API + path, {headers:{'content-type':'application/json'}, ...opts,
+                        body: opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body});
+  const data = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(data.error || data.detail || ('Request failed: ' + r.status));
+  return data;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600)}
+const hhmm = s => { const [h,m] = s.slice(-5).split(':').map(Number); return `${(h%12)||12}:${String(m).padStart(2,'0')}`; };
+
+/* ---------- render ---------- */
+function li(parts, actLabel, onClick){
+  const el = document.createElement('li');
+  if (parts.cls) el.className = parts.cls;
+  el.innerHTML = (parts.t?`<span class="t">${parts.t}</span>`:'') +
+    `<span class="who">${parts.dot?'<span class="dot"></span>':''}${esc(parts.who)}</span>` +
+    `<span class="meta">${esc(parts.meta||'')}</span><span class="what">${esc(parts.what)}</span>`;
+  if (actLabel){ const b=document.createElement('button'); b.className='act'; b.textContent=actLabel; b.onclick=onClick; el.appendChild(b); }
+  return el;
+}
+function emptyLine(ul, html){ ul.innerHTML = `<li><span class="empty">${html}</span></li>`; }
+
+function render(){
+  const S = STATE;
+  $('#brief-text').textContent = S.brief;
+  pill('#p-ai', S.ai); pill('#p-ol', S.outlook);
+  const ibmN = Object.values(S.ibm_counts||{}).reduce((a,b)=>a+b,0); pill('#p-ibm', ibmN>0);
+  $('#demo-banner').hidden = LIVE;
+
+  const needs = $('#needs'); needs.innerHTML='';
+  $('#needs-count').textContent = S.needs.length || '';
+  if (!S.outlook && LIVE) emptyLine(needs, 'Connect Outlook in <button onclick="openSettings()">Settings</button> and I\'ll flag what needs you.');
+  else if (!S.needs.length) emptyLine(needs, 'Nothing needs you right now. I\'ll flag the next one as it arrives.');
+  S.needs.forEach(n => needs.appendChild(li({dot:true, who:n.who, what:n.task || n.subject, meta:n.due?('Due '+n.due.slice(5)):''}, 'Draft reply', () => draftFor({email_id:n.id}, n.who))));
+
+  const w = $('#waiting'); w.innerHTML='';
+  $('#wait-count').textContent = S.waiting.length || '';
+  if (!S.waiting.length) emptyLine(w, S.outlook||!LIVE ? 'No one owes you a reply.' : 'Connect Outlook to track replies you\'re waiting on.');
+  S.waiting.forEach(x => w.appendChild(li({who:x.who, what:x.subject, meta:x.days+' days'}, 'Nudge', () => draftFor({sent_id:x.id}, x.who))));
+
+  const cal = $('#cal'); cal.innerHTML='';
+  const rows = [...S.events.map(e => ({k:e.start.slice(-5), e})), ...S.free.map(f => ({k:f.start, f}))].sort((a,b)=>a.k.localeCompare(b.k));
+  $('#cal-count').textContent = S.events.length ? `${S.events.length} meeting${S.events.length>1?'s':''}` : '';
+  if (!rows.length) emptyLine(cal, S.outlook||!LIVE ? 'Your day is clear.' : 'Connect Outlook to see your calendar.');
+  rows.forEach(r => {
+    if (r.e) cal.appendChild(li({t:hhmm(r.e.start), who:r.e.subject, what:(r.e.attendees||[]).slice(0,3).join(', ') || r.e.location || '', cls:r.e.overlap?'conflict':''}, 'Prep', () => ask('Prep me for ' + r.e.subject)));
+    else { const mins = (toMin(r.f.end)-toMin(r.f.start)); cal.appendChild(li({t:hhmm(r.f.start), who:`Free for ${mins>=60?(mins/60).toFixed(mins%60?1:0)+' h':mins+' min'}`, what:'Good time for a goal', cls:'free'}, 'Block', () => blockTime(r.f))); }
+  });
+  renderGoals();
+}
+const toMin = s => { const [h,m]=s.split(':').map(Number); return h*60+m; };
+function pill(sel, on){ $(sel).classList.toggle('on', !!on); }
+
+let IBM_ALL = null;
+async function renderGoals(){
+  const box = $('#goals');
+  let list;
+  if (!goalTab) list = STATE.goals;
+  else {
+    if (LIVE) { IBM_ALL = IBM_ALL || (await api('/api/ibm')).items; list = IBM_ALL.filter(i => i.source === goalTab); }
+    else list = STATE.goals.filter(g => g.source === goalTab);
+  }
+  const n = STATE.ibm_counts || {};
+  $('#ibm-source').textContent = (n.goals||n.myscore||n.learning)
+    ? `From your IBM pages: ${n.goals||0} goals, ${n.myscore||0} MyScore items, ${n.learning||0} courses` : '';
+  if (!list.length) {
+    box.innerHTML = `<div class="empty">${goalTab||!LIVE ? 'Nothing here yet.' : 'Nothing open.'} Add your Goals, MyScore or YourLearning pages in <button onclick="openSettings()">Settings</button>.</div>`;
+    return;
+  }
+  box.innerHTML = list.slice(0, 8).map(g => {
+    const done = /completed|^met$|not applicable/i.test(g.status||'');
+    const behind = /not met|overdue|due soon/i.test((g.urgency||'')+' '+(g.status||'')) || (g.days_left!=null && g.days_left<=14 && !done);
+    const when = g.days_left!=null ? (g.days_left<0 ? `${-g.days_left} days overdue` : `due in ${g.days_left} days`) : (g.due ? 'due '+g.due : '');
+    const label = {goals:'Goal',myscore:'MyScore',learning:'Learning'}[g.source] || '';
+    const next = g.suggestion ? `<b>${esc(g.suggestion)}</b>` : esc(g.detail || '');
+    return `<div class="goal ${behind?'behind':''}">
+      <div class="row"><span class="who">${esc(g.title)}${goalTab?'':`<span class="tag">${label}</span>`}</span><span class="pct">${esc(g.status||'')}</span></div>
+      <div class="next">${[when, next].filter(Boolean).join('. ')}</div></div>`;
+  }).join('');
+}
+$('#goal-tabs').onclick = e => { const b=e.target.closest('button'); if(!b) return;
+  goalTab = b.dataset.src; document.querySelectorAll('#goal-tabs button').forEach(x=>x.setAttribute('aria-selected', x===b)); renderGoals(); };
+
+function renderAgents(){
+  const cx=210, cy=210, R=185;
+  AGENTS.forEach((a,i) => {
+    const ang=-Math.PI/2+i*2*Math.PI/AGENTS.length, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    $('#links').insertAdjacentHTML('beforeend', `<line class="link" id="l-${a.id}" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`);
+    $('#agents').insertAdjacentHTML('beforeend', `<g class="agent" id="a-${a.id}"><circle cx="${x}" cy="${y}" r="27"/><text x="${x}" y="${y+4}">${a.label}</text></g>`);
+  });
+}
+function activate(ids){
+  document.querySelectorAll('.agent,.link').forEach(e=>e.classList.remove('on'));
+  (ids||[]).forEach(id => { $('#a-'+id)?.classList.add('on'); $('#l-'+id)?.classList.add('on'); });
+}
+function tick(){
+  const d=new Date(), h=d.getHours();
+  $('#time').textContent = d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  $('#date').textContent = d.toLocaleDateString([], {weekday:'long', month:'long', day:'numeric'});
+  $('#greet').textContent = (h<12?'Good morning':h<18?'Good afternoon':'Good evening') + ', ' + (STATE?.name || 'Vanshika');
+}
+
+/* ---------- load ---------- */
+async function load(){
+  try { STATE = await api('/api/state'); LIVE = true; IBM_ALL = null; }
+  catch(e){ if (!LIVE) STATE = DEMO; else toast(e.message); }
+  render(); tick();
+}
+
+/* ---------- speech out ---------- */
+let voiceOn = true;
+function speak(text){
+  if (!voiceOn || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = speechSynthesis.getVoices().find(v => /Daniel|UK English Male|en-GB/i.test(v.name+v.lang));
+  if (v) u.voice = v; u.rate = 1.02; u.pitch = .95;
+  speechSynthesis.speak(u);
+}
+function say(userText, text, agents){
+  $('#reply').innerHTML = `<div class="you">You: ${esc(userText)}</div><span>${esc(text)}</span>`;
+  speak(text); activate(agents); setTimeout(()=>activate([]), 2500);
+}
+function thinking(agents){
+  document.body.classList.add('thinking'); activate(agents);
+  $('#status').textContent = 'Working: ' + agents.map(id => AGENTS.find(a=>a.id===id)?.label).filter(Boolean).join(', ');
+}
+function done(){ document.body.classList.remove('thinking'); $('#status').textContent='Standing by'; }
+
+/* ---------- ask ---------- */
+async function ask(raw){
+  const q = raw.trim(); if (!q) return;
+  const s = q.toLowerCase();
+  if (/^(mute|quiet|stop talking)/.test(s)) { voiceOn=false; speechSynthesis?.cancel(); return say(q,'Voice is off. Say "voice on" to turn it back on.',[]); }
+  if (/voice on|unmute/.test(s)) { voiceOn=true; return say(q,'Voice is back on.',[]); }
+  if (/settings|connect|api key/.test(s) && s.length < 40) { openSettings(); return say(q, 'Here are your settings.', []); }
+
+  if (!LIVE) return demoAnswer(q, s);
+  thinking(['brief']);
+  try {
+    if (/^(give me )?(my )?(morning )?brief|what('s| is) (on|up) today/.test(s)) {
+      const r = await api('/api/brief/refresh', {method:'POST'});
+      STATE.brief = r.text; $('#brief-text').textContent = r.text; done(); return say(q, r.text, ['brief','triage','cal','goals']);
+    }
+    const r = await api('/api/chat', {method:'POST', body:{message:q, history}});
+    history.push({role:'user',content:q},{role:'assistant',content:r.text});
+    done(); say(q, r.text, r.agents);
+    if (r.action?.type === 'draft' && r.action.email_id) draftFor({email_id:r.action.email_id, instructions:r.action.instructions||''});
+    if (r.action?.type === 'block') blockTime({start:r.action.start, end:r.action.end}, r.action.title);
+  } catch(e){ done(); say(q, e.message, []); }
+}
+function demoAnswer(q, s){
+  const D = STATE;
+  let text = 'This is demo mode. Start Jarvis on your Mac and add your ICA key, and I can answer anything about your day.', ag=['brief'];
+  if (/brief|today|morning/.test(s)) { text = D.brief; ag=['brief','triage','cal','goals']; }
+  else if (/draft|reply/.test(s)) { text = 'I\'ve drafted a reply to Priya. Review it before it goes.'; ag=['draft']; setTimeout(()=>openDraft({id:0,to_name:'Priya Shah',subject:'RE: Revised contract',body:'Hi Priya,\n\nThanks for the revised contract. Sections 2 to 4 look good. Can we confirm net-30 in section 5? If so, I can sign by Thursday.\n\nBest,\nVanshika'}), 600); }
+  else if (/goal|myscore|learning|course|badge|az-900/.test(s)) { text = 'AZ-900 is due in 9 days and you have a free hour at 2:00. On MyScore, Gen and Agentic AI needs the Foundation level and isn\'t met yet.'; ag=['goals','cal']; }
+  else if (/wait|follow|nudge/.test(s)) { text = 'You\'re waiting on Daniel at Acme for 4 days about pricing. Want a nudge drafted?'; ag=['follow']; }
+  thinking(ag); setTimeout(()=>{ done(); say(q, text, ag); }, 700);
+}
+
+/* ---------- drafts (approval gate) ---------- */
+let currentDraft = null;
+async function draftFor(ref, who){
+  if (!LIVE) return demoAnswer('draft', 'draft');
+  thinking(['draft']);
+  try { const d = await api('/api/draft', {method:'POST', body:ref}); done(); openDraft(d); }
+  catch(e){ done(); toast(e.message); }
+}
+function openDraft(d){
+  currentDraft = d;
+  $('#d-title').textContent = 'To ' + (d.to_name || '') + ': ' + d.subject;
+  $('#d-body').value = d.body;
+  $('#d-note').textContent = LIVE ? 'Approve and send goes out from your Outlook immediately. Save puts it in your Outlook Drafts folder instead.' : 'Demo mode: nothing will be sent.';
+  activate(['draft']); $('#draft').showModal();
+}
+async function finishDraft(mode){
+  const body = $('#d-body').value; $('#draft').close();
+  if (!LIVE || !currentDraft?.id) return toast(mode==='send' ? 'Sent (demo)' : 'Saved (demo)');
+  try {
+    if (mode === 'discard') { await api(`/api/draft/${currentDraft.id}/discard`, {method:'POST'}); return toast('Draft discarded'); }
+    await api(`/api/draft/${currentDraft.id}/approve`, {method:'POST', body:{body, mode}});
+    toast(mode==='send' ? 'Sent to ' + (currentDraft.to_name||'them') : 'Saved to your Outlook drafts');
+    if (mode==='send') speak('Sent.');
+    load();
+  } catch(e){ toast(e.message); }
+}
+$('#d-send').onclick = () => finishDraft('send');
+$('#d-save').onclick = () => finishDraft('save');
+$('#d-discard').onclick = () => finishDraft('discard');
+
+async function blockTime(f, title){
+  title = title || (STATE.goals[0] ? 'Focus: ' + STATE.goals[0].title : 'Focus time');
+  if (!confirm(`Add "${title}" to your calendar, ${f.start}–${f.end} today?`)) return;
+  if (!LIVE) return toast('Added (demo)');
+  try { await api('/api/calendar/block', {method:'POST', body:{title, start:f.start, end:f.end}}); toast('Added to your calendar'); load(); }
+  catch(e){ toast(e.message); }
+}
+
+$('#brief-refresh').onclick = async () => {
+  if (!LIVE) return toast('Demo mode');
+  thinking(['brief']); try { const r = await api('/api/brief/refresh',{method:'POST'}); $('#brief-text').textContent=r.text; } catch(e){ toast(e.message); } done();
+};
+
+/* ---------- settings ---------- */
+async function openSettings(){
+  if (!LIVE) { toast('Start Jarvis on your Mac first (see the README), then open http://localhost:8765'); return; }
+  const s = await api('/api/settings');
+  $('#s-provider').value = s.ai.provider; $('#s-auth').value = s.ai.auth || 'x-api-key';
+  $('#s-base').value = s.ai.base_url; $('#s-model').value = s.ai.model; $('#s-key').value = '';
+  $('#s-key').placeholder = s.ai_key_set ? 'A key is saved. Paste a new one to replace it' : 'Paste your key';
+  $('#s-client').value = s.outlook.client_id; $('#s-tenant').value = s.outlook.tenant;
+  $('#s-name').value = s.name; $('#s-brief').value = s.brief_time; $('#s-ws').value = s.work_start; $('#s-we').value = s.work_end;
+  $('#s-vips').value = (s.vips||[]).join(', '); $('#s-bmail').checked = !!s.brief_email;
+  $('#s-folder').textContent = s.drop_folder_resolved;
+  stateLabel('#s-ai-state', s.ai_ready, s.ai_ready ? 'Ready' : 'Not set up');
+  refreshOutlook(); refreshFiles();
+  $('#settings').showModal();
+}
+function stateLabel(sel, on, text, warn){ const el=$(sel); el.classList.toggle('on',!!on); el.classList.toggle('warn',!!warn); el.innerHTML = '<i></i>' + esc(text); }
+$('#open-settings').onclick = openSettings;
+$('#s-close').onclick = () => { $('#settings').close(); load(); };
+
+function collect(){
+  return { name:$('#s-name').value.trim()||'Vanshika', brief_time:$('#s-brief').value||'06:30',
+    work_start:$('#s-ws').value||'09:00', work_end:$('#s-we').value||'17:00',
+    vips:$('#s-vips').value.split(',').map(x=>x.trim()).filter(Boolean), brief_email:$('#s-bmail').checked,
+    ai:{provider:$('#s-provider').value, auth:$('#s-auth').value, base_url:$('#s-base').value.trim(), model:$('#s-model').value.trim()},
+    outlook:{client_id:$('#s-client').value.trim(), tenant:$('#s-tenant').value.trim()||'organizations'} };
+}
+$('#s-save').onclick = async () => {
+  try { await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null}}); toast('Settings saved'); $('#settings').close(); load(); }
+  catch(e){ toast(e.message); }
+};
+$('#s-ai-save').onclick = async () => {
+  $('#s-ai-result').textContent = 'Testing…';
+  try {
+    await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null}});
+    $('#s-key').value='';
+    const t = await api('/api/ai/test', {method:'POST'});
+    $('#s-ai-result').textContent = t.ok ? 'Connected. The AI replied: ' + t.reply : t.error;
+    stateLabel('#s-ai-state', t.ok, t.ok ? 'Ready' : 'Not working', !t.ok);
+  } catch(e){ $('#s-ai-result').textContent = e.message; }
+};
+
+let olPoll = 0;
+async function refreshOutlook(){
+  const st = await api('/api/outlook/status');
+  const msg = {connected:'Connected as ' + st.account, signed_out:'Not connected', needs_app:'Needs an app ID', pending:'Waiting for you to sign in', error:'Problem'}[st.state];
+  stateLabel('#s-ol-state', st.state==='connected', msg, st.state==='error');
+  if (st.state==='pending') $('#s-ol-result').innerHTML = `Open <a href="${esc(st.url)}" target="_blank" style="color:var(--arc)">${esc(st.url)}</a> and enter <span class="code">${esc(st.user_code)}</span>`;
+  else if (st.state==='error') $('#s-ol-result').textContent = st.message;
+  else if (st.state==='connected') $('#s-ol-result').textContent = '';
+  clearTimeout(olPoll);
+  if (st.state==='pending' && $('#settings').open) olPoll = setTimeout(refreshOutlook, 3000);
+  if (st.state==='connected' && STATE && !STATE.outlook) { await api('/api/sync',{method:'POST'}).catch(()=>{}); load(); }
+}
+$('#s-ol-connect').onclick = async () => {
+  try {
+    await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook}}});
+    const r = await api('/api/outlook/connect', {method:'POST'});
+    $('#s-ol-result').innerHTML = `Open <a href="${esc(r.url)}" target="_blank" style="color:var(--arc)">${esc(r.url)}</a> and enter <span class="code">${esc(r.user_code)}</span>`;
+    window.open(r.url, '_blank'); refreshOutlook();
+  } catch(e){ $('#s-ol-result').textContent = e.message; }
+};
+$('#s-ol-out').onclick = async () => { await api('/api/outlook/disconnect',{method:'POST'}); refreshOutlook(); };
+
+async function refreshFiles(){
+  const r = await api('/api/ibm');
+  $('#s-files').innerHTML = r.files.length ? r.files.map(f => `<li>${esc(f.path.split('/').pop())}: ${esc(f.source||'?')}, ${esc(f.note)}</li>`).join('') : '<li>No IBM files yet.</li>';
+}
+async function upload(files){
+  for (const f of files) {
+    const fd = new FormData(); fd.append('file', f);
+    try { const r = await fetch(API+'/api/ibm/upload', {method:'POST', body:fd}).then(r=>r.json());
+          if (r.error) toast(r.error); else (r.results||[]).forEach(x => toast(`${x.file}: ${x.note}`)); }
+    catch(e){ toast(e.message); }
+  }
+  IBM_ALL = null; refreshFiles(); load();
+}
+const drop = $('#drop');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files); };
+$('#pick').onclick = () => $('#file').click();
+$('#file').onchange = e => upload(e.target.files);
+
+/* ---------- voice input ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+$('#mic').onclick = () => { if (document.body.classList.contains('listening')) { rec && rec.stop(); return; } startListening(); };
+function startListening(){
+  if (!SR) { toast('Voice input works in Chrome or Edge. Type instead.'); return; }
+  if (document.body.classList.contains('listening')) return;
+  speechSynthesis?.cancel();
+  rec = new SR(); rec.lang = 'en-US'; rec.interimResults = true;
+  document.body.classList.add('listening'); $('#status').textContent = 'Listening';
+  rec.onresult = e => { const t=[...e.results].map(r=>r[0].transcript).join(''); $('#q').value=t;
+    if (e.results[e.results.length-1].isFinal) { ask(t); $('#q').value=''; } };
+  rec.onend = () => { document.body.classList.remove('listening'); if ($('#status').textContent==='Listening') $('#status').textContent='Standing by'; };
+  rec.onerror = e => toast(e.error==='not-allowed' ? 'Allow microphone access to talk to Jarvis.' : 'I didn\'t catch that. Try again.');
+  rec.start();
+}
+
+/* ---------- clap to wake: two claps start the microphone ---------- */
+let clapStream=null, clapCtx=null, clapRAF=0;
+async function enableClap(){
+  try { clapStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
+  catch(e){ toast('Allow microphone access to use clap to wake.'); return false; }
+  clapCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const an = clapCtx.createAnalyser(); an.fftSize = 1024;
+  clapCtx.createMediaStreamSource(clapStream).connect(an);
+  const buf = new Float32Array(an.fftSize);
+  let floor=0.02, lastClap=0, cooldown=0, loud=false;
+  (function loop(){
+    an.getFloatTimeDomainData(buf);
+    let peak=0; for (const v of buf) peak=Math.max(peak,Math.abs(v));
+    const now=performance.now();
+    const busy = document.body.classList.contains('listening') || (window.speechSynthesis && speechSynthesis.speaking);
+    if (!loud) floor = floor*0.98 + peak*0.02;
+    const isSpike = peak > Math.max(0.3, floor*6);
+    if (isSpike && !loud && !busy && now>cooldown) {
+      loud = true; const gap = now-lastClap;
+      if (gap>150 && gap<900) { lastClap=0; cooldown=now+1500; toast('Clap clap, I\'m listening'); startListening(); }
+      else lastClap = now;
+    }
+    if (!isSpike && loud && peak < Math.max(0.12, floor*2)) loud = false;
+    clapRAF = requestAnimationFrame(loop);
+  })();
+  return true;
+}
+function disableClap(){ cancelAnimationFrame(clapRAF); clapStream?.getTracks().forEach(t=>t.stop()); clapCtx?.close(); clapStream=clapCtx=null; }
+$('#clap').onclick = async () => {
+  const b=$('#clap'), on=b.getAttribute('aria-pressed')==='true';
+  if (on) { disableClap(); b.setAttribute('aria-pressed','false'); b.textContent='Clap to wake: off'; return; }
+  if (await enableClap()) { b.setAttribute('aria-pressed','true'); b.textContent='Clap to wake: on, clap twice'; }
+};
+
+$('#cmd').addEventListener('submit', e => { e.preventDefault(); ask($('#q').value); $('#q').value=''; });
+['Give me my brief','What needs me today?','What am I waiting on?','What should I do for my IBM goals?','Block time for AZ-900']
+  .forEach(h => { const b=document.createElement('button'); b.type='button'; b.textContent=h; b.onclick=()=>ask(h); $('#hints').appendChild(b); });
+
+renderAgents(); load(); setInterval(tick, 15000); setInterval(() => LIVE && load(), 5*60*1000);
+</script>
+</body>
+</html>

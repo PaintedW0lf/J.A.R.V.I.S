@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Jarvis IBM Sync (phase B)",
+  "version": "0.1.0",
+  "description": "Sends the IBM Goals, MyScore or YourLearning page you're looking at to your local Jarvis. Only runs when you click it.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "action": { "default_title": "Send this page to Jarvis" },
+  "background": { "service_worker": "background.js" }
+}
