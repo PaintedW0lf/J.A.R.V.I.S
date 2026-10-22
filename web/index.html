@@ -290,7 +290,7 @@ dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var
 
   <h4>Outlook <span class="pill" id="s-ol-state"><i></i></span></h4>
   <label for="s-olmode">How to connect</label>
-  <select id="s-olmode"><option value="mac">Outlook app on this Mac (no IT approval needed)</option><option value="graph">Microsoft sign-in (needs an approved app ID)</option></select>
+  <select id="s-olmode"><option value="mac">Outlook app on this Mac (no IT approval needed)</option><option value="file">Schedule file (no Outlook, good for demos)</option><option value="graph">Microsoft sign-in (needs an approved app ID)</option></select>
   <div id="s-graph-box" hidden>
     <label for="s-client">App (client) ID</label><input id="s-client" placeholder="From the Azure app registration">
     <label for="s-tenant">Tenant</label><input id="s-tenant" placeholder="organizations">
@@ -540,7 +540,7 @@ async function finishDraft(mode){
   try {
     if (mode === 'discard') { await api(`/api/draft/${currentDraft.id}/discard`, {method:'POST'}); return toast('Draft discarded'); }
     await api(`/api/draft/${currentDraft.id}/approve`, {method:'POST', body:{body, mode}});
-    toast(mode==='send' ? 'Sent to ' + (currentDraft.to_name||'them') : 'Saved to your Outlook drafts');
+    toast(mode==='send' ? (STATE && STATE.mode==='file' ? 'Approved (demo: nothing was sent)' : 'Sent to ' + (currentDraft.to_name||'them')) : 'Saved to your Outlook drafts');
     if (mode==='send') speak('Sent.');
     load();
   } catch(e){ toast(e.message); }
@@ -618,10 +618,12 @@ $('#s-voice-test').onclick = () => { saveVoice(); const was=voiceOn; voiceOn=tru
 
 let olPoll = 0;
 function olModeUI(){
-  const mac = $('#s-olmode').value === 'mac';
+  const m = $('#s-olmode').value, mac = m !== 'graph';
   $('#s-graph-box').hidden = mac;
-  $('#s-ol-connect').textContent = mac ? 'Check Outlook' : 'Connect Outlook';
-  $('#s-ol-help').textContent = mac
+  $('#s-ol-connect').textContent = m === 'graph' ? 'Connect Outlook' : m === 'file' ? 'Check schedule file' : 'Check Outlook';
+  $('#s-ol-help').textContent = m === 'file'
+    ? 'Jarvis reads schedule.json (and optional demo_mail.json) from your IBM Drop folder. Nothing is sent from this mode: Approve only records your approval.'
+    : mac
     ? 'Jarvis reads the Outlook app already open on this Mac, using your signed-in account. The first time, macOS asks to let Terminal control Outlook: click OK. Replies you approve are sent from Outlook; "Save to Outlook drafts" opens the reply for you to finish.'
     : 'You sign in with your normal IBM account and MFA. IBM may need to approve the app first. See the README section "Connecting IBM Outlook".';
 }
@@ -641,7 +643,7 @@ $('#s-ol-connect').onclick = async () => {
   try {
     await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook}}});
     const r = await api('/api/outlook/connect', {method:'POST'});
-    if ($('#s-olmode').value === 'mac') { $('#s-ol-result').textContent = ''; refreshOutlook(); return; }
+    if ($('#s-olmode').value !== 'graph') { $('#s-ol-result').textContent = ''; refreshOutlook(); return; }
     $('#s-ol-result').innerHTML = `Open <a href="${esc(r.url)}" target="_blank" style="color:var(--arc)">${esc(r.url)}</a> and enter <span class="code">${esc(r.user_code)}</span>`;
     window.open(r.url, '_blank'); refreshOutlook();
   } catch(e){ $('#s-ol-result').textContent = e.message; }

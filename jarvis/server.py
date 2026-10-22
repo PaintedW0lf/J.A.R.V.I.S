@@ -103,7 +103,7 @@ def o_disconnect():
 def state():
     g = agents.gather()
     return {
-        "outlook": g["outlook"], "ai": g["ai"], "name": settings()["name"],
+        "outlook": g["outlook"], "mode": outlook.mode(), "ai": g["ai"], "name": settings()["name"],
         "brief": agents.brief(),
         "needs": [{"id": e["id"], "who": e["sender_name"] or e["sender_email"], "subject": e["subject"],
                    "task": e["task"], "due": e["due"], "received": e["received"]} for e in g["needs"]],
@@ -162,7 +162,7 @@ def approve(draft_id: int, body: ApproveIn):
         agents.save_to_outlook_drafts(draft_id, body.body)
         return {"ok": True, "status": "saved"}
     agents.approve_draft(draft_id, body.body)
-    return {"ok": True, "status": "sent"}
+    return {"ok": True, "status": "approved" if outlook.mode() == "file" else "sent"}
 
 
 @app.post("/api/draft/{draft_id}/discard")

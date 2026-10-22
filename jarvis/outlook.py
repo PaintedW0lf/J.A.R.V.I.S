@@ -211,6 +211,7 @@ def g_create_event(subject, start, end):
 # ---------- mode switch: "mac" (Outlook app on this Mac, no registration) or "graph" (Microsoft Graph) ----------
 import json as _json
 from . import outlook_mac as mac
+from . import outlook_file as fil
 
 
 def mode():
@@ -218,13 +219,13 @@ def mode():
 
 
 def status():
-    st = mac.status() if mode() == "mac" else g_status()
+    st = mac.status() if mode() == "mac" else fil.status() if mode() == "file" else g_status()
     st["mode"] = mode()
     return st
 
 
 def start_sign_in():
-    return mac.connect() if mode() == "mac" else g_start_sign_in()
+    return mac.connect() if mode() == "mac" else fil.connect() if mode() == "file" else g_start_sign_in()
 
 
 def sign_out():
@@ -233,20 +234,22 @@ def sign_out():
 
 
 def sync_mail(days=3):
-    return mac.sync_mail(days) if mode() == "mac" else g_sync_mail(days)
+    return mac.sync_mail(days) if mode() == "mac" else fil.sync_mail(days) if mode() == "file" else g_sync_mail(days)
 
 
 def events(day=None):
-    return mac.events(day) if mode() == "mac" else g_events(day)
+    return mac.events(day) if mode() == "mac" else fil.events(day) if mode() == "file" else g_events(day)
 
 
 def create_reply_draft(message_id, body, reply_all=False):
-    if mode() == "mac":   # nothing is created yet: the reply is made when you send or open it
+    if mode() in ("mac", "file"):   # nothing is created yet: the reply is made when you send or open it
         return _json.dumps({"mac": 1, "id": message_id, "body": body, "all": reply_all})
     return g_create_reply_draft(message_id, body, reply_all)
 
 
 def send_draft(draft_id):
+    if mode() == "file":
+        return   # file mode never sends anything
     if mode() == "mac":
         d = _json.loads(draft_id)
         mac.reply(d["id"], d["body"], d["all"], send=True)
@@ -262,11 +265,13 @@ def open_draft(draft_id):
 
 
 def send_mail(to, subject, body):
+    if mode() == "file":
+        return
     return mac.send_mail(to, subject, body) if mode() == "mac" else g_send_mail(to, subject, body)
 
 
 def create_event(subject, start, end):
-    return mac.create_event(subject, start, end) if mode() == "mac" else g_create_event(subject, start, end)
+    return mac.create_event(subject, start, end) if mode() == "mac" else fil.create_event(subject, start, end) if mode() == "file" else g_create_event(subject, start, end)
 
 
 def my_address():

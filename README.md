@@ -67,6 +67,8 @@ If it fails:
 - *"macOS blocked Jarvis"* — open System Settings → Privacy & Security → Automation, and switch on Microsoft Outlook under Terminal.
 - *"doesn't support being controlled by scripts"* — your Outlook is the "New Outlook" and has no scripting. Look for the **New Outlook** switch at the top right of Outlook and turn it off if IBM allows. If it can't be switched, use the file-drop route in section 3 for your calendar and mail exports.
 
+**Demo or no-Outlook mode: schedule file.** In Settings → Outlook choose *Schedule file*. Jarvis reads `schedule.json` (and optionally `demo_mail.json`) from your IBM Drop folder, so you can show or use it with no Outlook connection at all. Examples are in the `demo/` folder. Nothing is ever sent in this mode.
+
 **Alternative: Microsoft sign-in (only if IBM approves an app).** Choose "Microsoft sign-in" in Settings. It needs an Entra app registration (public client, delegated `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `User.Read`) and likely IBM admin consent. Paste the client and tenant IDs, then click **Connect Outlook**.
 
 ## 3. Connect IBM Goals, MyScore and YourLearning

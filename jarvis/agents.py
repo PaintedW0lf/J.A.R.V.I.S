@@ -190,7 +190,9 @@ def _plain_brief(g):
     urgent = [a for a in g["goals"] if a["urgency"] != "on the list"]
     if urgent:
         a = urgent[0]
-        when = f"due in {a['days_left']} days" if a["days_left"] is not None else a["urgency"]
+        dl = a["days_left"]
+        when = (("overdue" if dl < 0 else "due today" if dl == 0 else "due tomorrow" if dl == 1 else f"due in {dl} days")
+                if dl is not None else a["urgency"])
         parts.append(f"On your IBM goals, {a['title']} is {when}." + (f" {a['suggestion']}." if a["suggestion"] else ""))
     elif not g["goals"]:
         parts.append("Drop your Goals, MyScore and YourLearning pages in the IBM folder and I'll track them.")
@@ -281,14 +283,15 @@ def approve_draft(draft_id, body):
         oid = outlook.create_reply_draft(d["ref_id"], body, reply_all=True)
         outlook.send_draft(oid)
         db.x("UPDATE sent SET nudged=1 WHERE id=?", (d["ref_id"],))
-    db.x("UPDATE drafts SET status='sent', body=? WHERE id=?", (body, draft_id))
-    db.log("send", f"Sent to {d['to_name'] or d['to_email']}: {d['subject']}")
+    demo = outlook.mode() == "file"
+    db.x("UPDATE drafts SET status=?, body=? WHERE id=?", ("approved" if demo else "sent", body, draft_id))
+    db.log("send", f"{'Approved (demo, not sent)' if demo else 'Sent'} to {d['to_name'] or d['to_email']}: {d['subject']}")
 
 
 def save_to_outlook_drafts(draft_id, body):
     d = db.q("SELECT * FROM drafts WHERE id=?", (draft_id,))[0]
     oid = outlook.create_reply_draft(d["ref_id"], body, reply_all=d["kind"] == "nudge")
-    if outlook.mode() == "mac":
+    if outlook.mode() in ("mac",):
         outlook.open_draft(oid)   # opens the reply in Outlook for you to finish
     db.x("UPDATE drafts SET status='saved', body=? WHERE id=?", (body, draft_id))
 
