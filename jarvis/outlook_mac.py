@@ -287,7 +287,43 @@ def my_address():
     return None
 
 
+DIAG_SCRIPT = '''
+on run argv
+  set out to ""
+  tell application "Microsoft Outlook"
+    set out to out & "Outlook version: " & (version as text) & linefeed
+    try
+      set out to out & "Default inbox count: " & (count of messages of inbox) & linefeed
+    on error e
+      set out to out & "Default inbox error: " & e & linefeed
+    end try
+    try
+      repeat with f in (every mail folder)
+        try
+          set out to out & "Folder: " & (name of f) & " = " & (count of messages of f) & linefeed
+        end try
+      end repeat
+    on error e
+      set out to out & "Folder list error: " & e & linefeed
+    end try
+    try
+      set out to out & "Exchange accounts: " & (count of exchange accounts) & linefeed
+    end try
+  end tell
+  return out
+end run
+'''
+
+
+def diagnose():
+    return _run(DIAG_SCRIPT, timeout=120)
+
+
 if __name__ == "__main__":
+    import sys
+    if "--diagnose" in sys.argv:
+        print(diagnose())
+        raise SystemExit
     # Run:  python -m jarvis.outlook_mac     to check that Jarvis can reach your Outlook.
     print("Checking Outlook on this Mac...")
     s = status()
