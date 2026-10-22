@@ -42,20 +42,32 @@ If the test fails, the message says why. A rejected key usually means the wrong 
 
 **Without a key**, Jarvis still works using built-in rules, with a plain brief and simple triage. The key adds better triage, drafts in your voice and free-form questions.
 
-## 2. Connect IBM Outlook
+## 2. Connect IBM Outlook (no IT approval needed)
 
-Jarvis signs in to Microsoft 365 the way the Teams or Outlook apps do. You use your normal `@ibm.com` login and MFA, and you don't give Jarvis your password.
+Jarvis talks to the **Outlook app already on your Mac**, using the account you're signed into. There's no Azure app, no client ID and no admin consent.
 
-**One-time app registration.** Microsoft requires every app to have an ID.
+1. Open Outlook and leave it running.
+2. Check that Jarvis can reach it. In Terminal, from this folder:
 
-1. Go to entra.microsoft.com → **App registrations → New registration**. Name it `Jarvis (personal)` and choose *Accounts in this organizational directory only*.
-2. Under **Authentication**, turn on **Allow public client flows**.
-3. Under **API permissions → Microsoft Graph → Delegated**, add `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite` and `User.Read`.
-4. Copy the **Application (client) ID** and the **Directory (tenant) ID** into Jarvis Settings → Outlook.
+   ```bash
+   ./.venv/bin/python -m jarvis.outlook_mac
+   ```
 
-If IBM doesn't let you create app registrations, IBM IT has to create one for you or approve one. Ask the IT service desk for "a personal productivity app using Microsoft Graph delegated permissions (Mail.ReadWrite, Mail.Send, Calendars.ReadWrite), device-code sign-in, data stored only on my laptop." If your request is for internal ICA tooling, mention that too. **Admin consent is likely required at IBM.** If sign-in says "Need admin approval," that's the step you're waiting on.
+   (Run `./start.sh` once first so the environment exists, then press Ctrl+C.) The first time, macOS asks whether Terminal can control Microsoft Outlook. Click **OK**. You should see "Outlook on this Mac (N messages in Inbox)" and a meeting count.
+3. In Jarvis, open Settings → Outlook. "Outlook app on this Mac" is already selected. Click **Check Outlook**.
 
-**Sign in:** click **Connect Outlook**. Jarvis shows a code and opens microsoft.com/devicelogin. Enter the code, sign in, and you're done. Your inbox and calendar appear within a minute.
+How it behaves:
+
+- **Reading:** Jarvis reads your last 3 days of Inbox, your last 14 days of Sent items, and today's calendar, every 5 minutes.
+- **Replies:** **Approve and send** sends from Outlook straight away. **Save to Outlook drafts** opens the reply in an Outlook window so you can edit and send it yourself.
+- **Limits:** a repeating meeting may only appear on its first day. Threads are matched by subject rather than Microsoft's thread ID.
+
+If it fails:
+
+- *"macOS blocked Jarvis"* — open System Settings → Privacy & Security → Automation, and switch on Microsoft Outlook under Terminal.
+- *"doesn't support being controlled by scripts"* — your Outlook is the "New Outlook" and has no scripting. Look for the **New Outlook** switch at the top right of Outlook and turn it off if IBM allows. If it can't be switched, use the file-drop route in section 3 for your calendar and mail exports.
+
+**Alternative: Microsoft sign-in (only if IBM approves an app).** Choose "Microsoft sign-in" in Settings. It needs an Entra app registration (public client, delegated `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `User.Read`) and likely IBM admin consent. Paste the client and tenant IDs, then click **Connect Outlook**.
 
 ## 3. Connect IBM Goals, MyScore and YourLearning
 

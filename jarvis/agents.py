@@ -287,7 +287,9 @@ def approve_draft(draft_id, body):
 
 def save_to_outlook_drafts(draft_id, body):
     d = db.q("SELECT * FROM drafts WHERE id=?", (draft_id,))[0]
-    outlook.create_reply_draft(d["ref_id"], body, reply_all=d["kind"] == "nudge")
+    oid = outlook.create_reply_draft(d["ref_id"], body, reply_all=d["kind"] == "nudge")
+    if outlook.mode() == "mac":
+        outlook.open_draft(oid)   # opens the reply in Outlook for you to finish
     db.x("UPDATE drafts SET status='saved', body=? WHERE id=?", (body, draft_id))
 
 
@@ -343,7 +345,10 @@ def brief_job():
     s = settings()
     if s.get("brief_email") and outlook_ok():
         try:
-            me = outlook._get("/me")["mail"]
+            me = outlook.my_address()
+            if not me:
+                db.log("brief", "Add your email address in Settings to get the brief by email.")
+                return
             outlook.send_mail(me, f"Your morning brief, {date.today():%A %B %-d}", text)
         except Exception as e:
             db.log("brief", f"Couldn't email the brief: {e}")

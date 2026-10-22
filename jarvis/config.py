@@ -33,7 +33,9 @@ DEFAULTS = {
         "model": "",
         "auth": "x-api-key",       # or "bearer" for gateways that want Authorization: Bearer <key>
     },
+    "email": "",                   # your work address; only used to email the morning brief to yourself
     "outlook": {
+        "mode": "mac",             # "mac" = the Outlook app on this Mac (no registration); "graph" = Microsoft Graph
         "client_id": "",           # from your Azure / Entra app registration
         "tenant": "organizations", # or your tenant id / domain, e.g. ibm.onmicrosoft.com
     },

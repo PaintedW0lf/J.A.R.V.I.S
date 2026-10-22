@@ -289,9 +289,13 @@ dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var
   <div class="act-row"><button class="primary" type="button" id="s-ai-save">Save and test</button><span class="result" id="s-ai-result"></span></div>
 
   <h4>Outlook <span class="pill" id="s-ol-state"><i></i></span></h4>
-  <label for="s-client">App (client) ID</label><input id="s-client" placeholder="From the Azure app registration">
-  <label for="s-tenant">Tenant</label><input id="s-tenant" placeholder="organizations">
-  <div class="help">You sign in with your normal IBM account and MFA. IBM may need to approve the app first. See the README section "Connecting IBM Outlook".</div>
+  <label for="s-olmode">How to connect</label>
+  <select id="s-olmode"><option value="mac">Outlook app on this Mac (no IT approval needed)</option><option value="graph">Microsoft sign-in (needs an approved app ID)</option></select>
+  <div id="s-graph-box" hidden>
+    <label for="s-client">App (client) ID</label><input id="s-client" placeholder="From the Azure app registration">
+    <label for="s-tenant">Tenant</label><input id="s-tenant" placeholder="organizations">
+  </div>
+  <div class="help" id="s-ol-help"></div>
   <div class="act-row"><button class="primary" type="button" id="s-ol-connect">Connect Outlook</button><button type="button" id="s-ol-out">Disconnect</button><span class="result" id="s-ol-result"></span></div>
 
   <h4>IBM portals</h4>
@@ -308,6 +312,7 @@ dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var
   </div>
   <label for="s-vips">VIP emails (always "needs you"), comma separated</label><input id="s-vips">
   <label><input type="checkbox" id="s-bmail" style="width:auto;margin-right:6px">Also email my brief to me each morning</label>
+  <input id="s-email" placeholder="Your work email (only used for the emailed brief)">
 
   <div class="btns"><button type="button" id="s-close">Close</button><button type="button" class="primary" id="s-save">Save</button></div>
 </dialog>
@@ -552,8 +557,9 @@ async function openSettings(){
   $('#s-base').value = s.ai.base_url; $('#s-model').value = s.ai.model; $('#s-key').value = '';
   $('#s-key').placeholder = s.ai_key_set ? 'A key is saved. Paste a new one to replace it' : 'Paste your key';
   $('#s-client').value = s.outlook.client_id; $('#s-tenant').value = s.outlook.tenant;
+  $('#s-olmode').value = s.outlook.mode || 'mac'; olModeUI();
   $('#s-name').value = s.name; $('#s-brief').value = s.brief_time; $('#s-ws').value = s.work_start; $('#s-we').value = s.work_end;
-  $('#s-vips').value = (s.vips||[]).join(', '); $('#s-bmail').checked = !!s.brief_email;
+  $('#s-vips').value = (s.vips||[]).join(', '); $('#s-bmail').checked = !!s.brief_email; $('#s-email').value = s.email || '';
   $('#s-folder').textContent = s.drop_folder_resolved;
   stateLabel('#s-ai-state', s.ai_ready, s.ai_ready ? 'Ready' : 'Not set up');
   refreshOutlook(); refreshFiles();
@@ -566,9 +572,9 @@ $('#s-close').onclick = () => { $('#settings').close(); load(); };
 function collect(){
   return { name:$('#s-name').value.trim()||'Vanshika', brief_time:$('#s-brief').value||'06:30',
     work_start:$('#s-ws').value||'09:00', work_end:$('#s-we').value||'17:00',
-    vips:$('#s-vips').value.split(',').map(x=>x.trim()).filter(Boolean), brief_email:$('#s-bmail').checked,
+    vips:$('#s-vips').value.split(',').map(x=>x.trim()).filter(Boolean), brief_email:$('#s-bmail').checked, email:$('#s-email').value.trim(),
     ai:{provider:$('#s-provider').value, auth:$('#s-auth').value, base_url:$('#s-base').value.trim(), model:$('#s-model').value.trim()},
-    outlook:{client_id:$('#s-client').value.trim(), tenant:$('#s-tenant').value.trim()||'organizations'} };
+    outlook:{mode:$('#s-olmode').value, client_id:$('#s-client').value.trim(), tenant:$('#s-tenant').value.trim()||'organizations'} };
 }
 $('#s-save').onclick = async () => {
   try { await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null}}); toast('Settings saved'); $('#settings').close(); load(); }
@@ -586,6 +592,15 @@ $('#s-ai-save').onclick = async () => {
 };
 
 let olPoll = 0;
+function olModeUI(){
+  const mac = $('#s-olmode').value === 'mac';
+  $('#s-graph-box').hidden = mac;
+  $('#s-ol-connect').textContent = mac ? 'Check Outlook' : 'Connect Outlook';
+  $('#s-ol-help').textContent = mac
+    ? 'Jarvis reads the Outlook app already open on this Mac, using your signed-in account. The first time, macOS asks to let Terminal control Outlook: click OK. Replies you approve are sent from Outlook; "Save to Outlook drafts" opens the reply for you to finish.'
+    : 'You sign in with your normal IBM account and MFA. IBM may need to approve the app first. See the README section "Connecting IBM Outlook".';
+}
+$('#s-olmode').onchange = async () => { olModeUI(); await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook}}}); refreshOutlook(); };
 async function refreshOutlook(){
   const st = await api('/api/outlook/status');
   const msg = {connected:'Connected as ' + st.account, signed_out:'Not connected', needs_app:'Needs an app ID', pending:'Waiting for you to sign in', error:'Problem'}[st.state];
@@ -601,6 +616,7 @@ $('#s-ol-connect').onclick = async () => {
   try {
     await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook}}});
     const r = await api('/api/outlook/connect', {method:'POST'});
+    if ($('#s-olmode').value === 'mac') { $('#s-ol-result').textContent = ''; refreshOutlook(); return; }
     $('#s-ol-result').innerHTML = `Open <a href="${esc(r.url)}" target="_blank" style="color:var(--arc)">${esc(r.url)}</a> and enter <span class="code">${esc(r.user_code)}</span>`;
     window.open(r.url, '_blank'); refreshOutlook();
   } catch(e){ $('#s-ol-result').textContent = e.message; }

@@ -56,7 +56,7 @@ def token():
     return res.get("access_token") if res else None
 
 
-def status():
+def g_status():
     o = settings()["outlook"]
     if not o.get("client_id"):
         return {"state": "needs_app", "message": "Add your app's client ID to connect Outlook."}
@@ -75,7 +75,7 @@ def status():
     return {"state": "signed_out"}
 
 
-def start_sign_in():
+def g_start_sign_in():
     """Begin device-code sign-in. Returns the code to show the user."""
     with _lock:
         cache = _cache()
@@ -105,7 +105,7 @@ def start_sign_in():
     return {"user_code": _flow["user_code"], "url": _flow["url"]}
 
 
-def sign_out():
+def g_sign_out():
     if CACHE_FILE.exists():
         CACHE_FILE.unlink()
     _flow.clear()
@@ -131,7 +131,7 @@ def _post(path, body):
 
 
 # ---------- sync ----------
-def sync_mail(days=3):
+def g_sync_mail(days=3):
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     sel = "id,conversationId,subject,from,receivedDateTime,bodyPreview,isRead"
     inbox = _get("/me/mailFolders/inbox/messages", {"$filter": f"receivedDateTime ge {since}",
@@ -158,7 +158,7 @@ def sync_mail(days=3):
     return len(rows), len(srows)
 
 
-def events(day=None):
+def g_events(day=None):
     tz = settings()["timezone"]
     day = day or datetime.now().date()
     # include the local UTC offset, otherwise Graph treats the times as UTC
@@ -184,7 +184,7 @@ def events(day=None):
     return out
 
 
-def create_reply_draft(message_id, body, reply_all=False):
+def g_create_reply_draft(message_id, body, reply_all=False):
     """Creates a reply draft inside Outlook (shows up in your Drafts folder)."""
     d = _post(f"/me/messages/{message_id}/{'createReplyAll' if reply_all else 'createReply'}", {})
     t = token()
@@ -193,16 +193,83 @@ def create_reply_draft(message_id, body, reply_all=False):
     return d["id"]
 
 
-def send_draft(draft_id):
+def g_send_draft(draft_id):
     _post(f"/me/messages/{draft_id}/send", {})
 
 
-def send_mail(to, subject, body):
+def g_send_mail(to, subject, body):
     _post("/me/sendMail", {"message": {"subject": subject, "body": {"contentType": "Text", "content": body},
                                        "toRecipients": [{"emailAddress": {"address": to}}]}, "saveToSentItems": True})
 
 
-def create_event(subject, start, end):
+def g_create_event(subject, start, end):
     tz = settings()["timezone"]
     return _post("/me/events", {"subject": subject, "start": {"dateTime": start, "timeZone": tz},
                                 "end": {"dateTime": end, "timeZone": tz}, "showAs": "busy"})
+
+
+# ---------- mode switch: "mac" (Outlook app on this Mac, no registration) or "graph" (Microsoft Graph) ----------
+import json as _json
+from . import outlook_mac as mac
+
+
+def mode():
+    return settings()["outlook"].get("mode", "mac")
+
+
+def status():
+    st = mac.status() if mode() == "mac" else g_status()
+    st["mode"] = mode()
+    return st
+
+
+def start_sign_in():
+    return mac.connect() if mode() == "mac" else g_start_sign_in()
+
+
+def sign_out():
+    if mode() == "graph":
+        g_sign_out()
+
+
+def sync_mail(days=3):
+    return mac.sync_mail(days) if mode() == "mac" else g_sync_mail(days)
+
+
+def events(day=None):
+    return mac.events(day) if mode() == "mac" else g_events(day)
+
+
+def create_reply_draft(message_id, body, reply_all=False):
+    if mode() == "mac":   # nothing is created yet: the reply is made when you send or open it
+        return _json.dumps({"mac": 1, "id": message_id, "body": body, "all": reply_all})
+    return g_create_reply_draft(message_id, body, reply_all)
+
+
+def send_draft(draft_id):
+    if mode() == "mac":
+        d = _json.loads(draft_id)
+        mac.reply(d["id"], d["body"], d["all"], send=True)
+    else:
+        g_send_draft(draft_id)
+
+
+def open_draft(draft_id):
+    """'Save to Outlook drafts': in Mac mode this opens the reply window in Outlook for you to finish."""
+    if mode() == "mac":
+        d = _json.loads(draft_id)
+        mac.reply(d["id"], d["body"], d["all"], send=False)
+
+
+def send_mail(to, subject, body):
+    return mac.send_mail(to, subject, body) if mode() == "mac" else g_send_mail(to, subject, body)
+
+
+def create_event(subject, start, end):
+    return mac.create_event(subject, start, end) if mode() == "mac" else g_create_event(subject, start, end)
+
+
+def my_address():
+    if mode() == "mac":
+        return settings().get("email") or None
+    return _get("/me").get("mail")
