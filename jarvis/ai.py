@@ -45,16 +45,18 @@ def complete(system, messages, max_tokens=1200, temperature=0.3):
     base = cfg["base_url"].rstrip("/")
     if cfg["provider"] == "anthropic":
         url = base if base.endswith("/messages") else (base + ("/messages" if base.endswith("/v1") else "/v1/messages"))
-        body = {"model": cfg["model"], "max_tokens": max_tokens, "temperature": temperature,
-                "system": system, "messages": messages}
+        body = {"model": cfg["model"], "max_tokens": max_tokens, "system": system, "messages": messages}
     else:
         url = base if base.endswith("/completions") else base + "/chat/completions"
-        body = {"model": cfg["model"], "max_tokens": max_tokens, "temperature": temperature,
+        body = {"model": cfg["model"], "max_tokens": max_tokens,
                 "messages": [{"role": "system", "content": system}] + messages}
     try:
         r = httpx.post(url, headers=_headers(cfg, key), json=body, timeout=90)
     except httpx.HTTPError as e:
         raise AIError(f"Couldn't reach the AI service at {base}: {e}") from e
+    if r.status_code == 400 and "max_tokens" in r.text and "max_completion_tokens" in r.text:
+        body["max_completion_tokens"] = body.pop("max_tokens")
+        r = httpx.post(url, headers=_headers(cfg, key), json=body, timeout=90)
     if r.status_code == 401 or r.status_code == 403:
         detail = (r.text or "").strip().replace("\n", " ")[:200]
         raise AIError(f"The AI service said {r.status_code} at {url}: {detail or 'no details'}. "
