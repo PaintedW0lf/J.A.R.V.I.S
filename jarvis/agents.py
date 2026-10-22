@@ -128,7 +128,10 @@ def calendar_today():
         cursor = max(cursor, en)
     if cursor < s["work_end"] and (_hm(s["work_end"]) - _hm(cursor)).seconds >= 1800:
         free.append({"start": cursor, "end": s["work_end"]})
-    now = _local_now().strftime("%H:%M")
+    # round "now" up to the next quarter hour so the suggested start doesn't change every minute
+    n = _local_now()
+    n = n.replace(second=0, microsecond=0) + timedelta(minutes=(-n.minute) % 15)
+    now = n.strftime("%H:%M")
     free = [{"start": max(f["start"], now), "end": f["end"]} for f in free if f["end"] > now]
     free = [f for f in free if (_hm(f["end"]) - _hm(f["start"])).seconds >= 1800]
     return evs, free
@@ -311,14 +314,22 @@ def chat(message, history=None):
         return {"text": "I need an AI key to answer freely. Open Settings and add your ICA key. "
                         "Until then, try \"give me my brief\".", "agents": agents, "action": None}
     system = (
-        f"You are J.A.R.V.I.S., {settings()['name']}'s proactive work assistant at IBM. You can see her live state below. "
-        "Answer in 1-4 spoken sentences, no markdown. You may propose actions but never claim to have sent email or "
-        "changed her calendar: those need her approval. If she asks you to draft a reply, set action to "
-        '{"type":"draft","email_id":...,"instructions":...}. If she asks to block time, set action to '
-        '{"type":"block","title":...,"start":"HH:MM","end":"HH:MM"}. '
-        'Return JSON: {"text": str, "action": object or null}.\n\nState:\n' + json.dumps(_compact(g), default=str) +
+        f"You are J.A.R.V.I.S., {settings()['name']}'s proactive work assistant at IBM. The state below is the ONLY "
+        "source of truth and it is current. Rules: answer in 1-3 short spoken sentences, no markdown. "
+        "Never mention, compare with, or correct anything you said earlier; never apologise; never say 'I need to "
+        "correct'. Use free_blocks times exactly as given and never invent other times. You cannot change her "
+        "calendar or send email yourself, so never say 'I've added', 'I'll set it now' or similar. To block time, "
+        "propose it as a question ('Want me to block 15:45 to 17:00?') and set action to "
+        '{"type":"block","title":...,"start":"HH:MM","end":"HH:MM"}; she confirms in the interface. '
+        "If asked to draft a reply, set action to "
+        '{"type":"draft","email_id":...,"instructions":...}. Don\'t mention Outlook being connected unless she asks. '
+        'Return JSON only: {"text": str, "action": object or null}.\n\nState:\n' + json.dumps(_compact(g), default=str) +
         "\nEmail ids for drafting: " + json.dumps([{"id": e["id"], "from": e["sender_name"], "subject": e["subject"]} for e in g["needs"]]))
-    msgs = (history or [])[-8:] + [{"role": "user", "content": message}]
+    import re as _re
+    # keep only the last few turns, and drop earlier assistant replies that were self-corrections
+    hist = [h for h in (history or [])[-4:]
+            if not (h.get("role") == "assistant" and _re.search(r"correct|mistake|apolog|sorry", h.get("content", ""), _re.I))]
+    msgs = hist + [{"role": "user", "content": message}]
     raw = ai.complete(system, msgs, max_tokens=600)
     try:
         import re
