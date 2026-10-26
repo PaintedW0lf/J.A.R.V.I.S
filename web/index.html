@@ -290,10 +290,16 @@ dialog .btns .primary{background:var(--gold);color:var(--abyss);border-color:var
 
   <h4>Outlook <span class="pill" id="s-ol-state"><i></i></span></h4>
   <label for="s-olmode">How to connect</label>
-  <select id="s-olmode"><option value="mac">Outlook app on this Mac (no IT approval needed)</option><option value="file">Schedule file (no Outlook, good for demos)</option><option value="graph">Microsoft sign-in (needs an approved app ID)</option></select>
+  <select id="s-olmode"><option value="mac">Outlook app on this Mac (no IT approval needed)</option><option value="gmail">Personal Gmail (App Password, no approval needed)</option><option value="file">Schedule file (no Outlook, good for demos)</option><option value="graph">Microsoft sign-in (needs an approved app ID)</option></select>
   <div id="s-graph-box" hidden>
     <label for="s-client">App (client) ID</label><input id="s-client" placeholder="From the Azure app registration">
     <label for="s-tenant">Tenant</label><input id="s-tenant" placeholder="organizations">
+  </div>
+  <div id="s-gmail-box" hidden>
+    <label for="s-gaddr">Gmail address</label><input id="s-gaddr" type="email" placeholder="you@gmail.com">
+    <label for="s-gpw">App Password</label><input id="s-gpw" type="password" placeholder="16-letter App Password (not your normal password)">
+    <label for="s-gical">Google Calendar link (optional)</label><input id="s-gical" type="password" placeholder="Secret address in iCal format">
+    <div class="help">Make an App Password at myaccount.google.com/apppasswords (2-Step Verification must be on). In Gmail, Settings, Forwarding and POP/IMAP, make sure IMAP is enabled. For your calendar: Google Calendar, Settings, your calendar, Integrate calendar, copy "Secret address in iCal format". Both are stored in your Mac Keychain.</div>
   </div>
   <div class="help" id="s-ol-help"></div>
   <div class="act-row"><button class="primary" type="button" id="s-ol-connect">Connect Outlook</button><button type="button" id="s-ol-out">Disconnect</button><span class="result" id="s-ol-result"></span></div>
@@ -540,7 +546,7 @@ async function finishDraft(mode){
   try {
     if (mode === 'discard') { await api(`/api/draft/${currentDraft.id}/discard`, {method:'POST'}); return toast('Draft discarded'); }
     await api(`/api/draft/${currentDraft.id}/approve`, {method:'POST', body:{body, mode}});
-    toast(mode==='send' ? (STATE && STATE.mode==='file' ? 'Approved (demo: nothing was sent)' : 'Sent to ' + (currentDraft.to_name||'them')) : 'Saved to your Outlook drafts');
+    toast(mode==='send' ? (STATE && STATE.mode==='file' ? 'Approved (demo: nothing was sent)' : 'Sent to ' + (currentDraft.to_name||'them')) : 'Saved to your drafts');
     if (mode==='send') speak('Sent.');
     load();
   } catch(e){ toast(e.message); }
@@ -570,7 +576,9 @@ async function openSettings(){
   $('#s-base').value = s.ai.base_url; $('#s-model').value = s.ai.model; $('#s-key').value = '';
   $('#s-key').placeholder = s.ai_key_set ? 'A key is saved. Paste a new one to replace it' : 'Paste your key';
   $('#s-client').value = s.outlook.client_id; $('#s-tenant').value = s.outlook.tenant;
-  $('#s-olmode').value = s.outlook.mode || 'mac'; olModeUI();
+  $('#s-olmode').value = s.outlook.mode || 'mac'; $('#s-gaddr').value = (s.gmail||{}).address || '';
+  $('#s-gpw').placeholder = s.gmail_pw_set ? 'An App Password is saved. Paste a new one to replace it' : '16-letter App Password (not your normal password)';
+  $('#s-gical').placeholder = s.gmail_ical_set ? 'A calendar link is saved. Paste a new one to replace it' : 'Secret address in iCal format'; olModeUI();
   $('#s-name').value = s.name; $('#s-brief').value = s.brief_time; $('#s-ws').value = s.work_start; $('#s-we').value = s.work_end;
   $('#s-vips').value = (s.vips||[]).join(', '); $('#s-bmail').checked = !!s.brief_email; $('#s-email').value = s.email || '';
   $('#s-folder').textContent = s.drop_folder_resolved;
@@ -587,16 +595,16 @@ function collect(){
     work_start:$('#s-ws').value||'09:00', work_end:$('#s-we').value||'17:00',
     vips:$('#s-vips').value.split(',').map(x=>x.trim()).filter(Boolean), brief_email:$('#s-bmail').checked, email:$('#s-email').value.trim(),
     ai:{provider:$('#s-provider').value, auth:$('#s-auth').value, base_url:$('#s-base').value.trim(), model:$('#s-model').value.trim()},
-    outlook:{mode:$('#s-olmode').value, client_id:$('#s-client').value.trim(), tenant:$('#s-tenant').value.trim()||'organizations'} };
+    gmail:{address:$('#s-gaddr').value.trim()}, outlook:{mode:$('#s-olmode').value, client_id:$('#s-client').value.trim(), tenant:$('#s-tenant').value.trim()||'organizations'} };
 }
 $('#s-save').onclick = async () => {
-  try { await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null}}); toast('Settings saved'); $('#settings').close(); load(); }
+  try { await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null, gmail_password: $('#s-gpw').value || null, gmail_ical: $('#s-gical').value || null}}); toast('Settings saved'); $('#settings').close(); load(); }
   catch(e){ toast(e.message); }
 };
 $('#s-ai-save').onclick = async () => {
   $('#s-ai-result').textContent = 'Testing…';
   try {
-    await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null}});
+    await api('/api/settings', {method:'POST', body:{patch:collect(), ai_key: $('#s-key').value || null, gmail_password: $('#s-gpw').value || null, gmail_ical: $('#s-gical').value || null}});
     $('#s-key').value='';
     const t = await api('/api/ai/test', {method:'POST'});
     $('#s-ai-result').textContent = t.ok ? 'Connected. The AI replied: ' + t.reply : t.error;
@@ -619,9 +627,11 @@ $('#s-voice-test').onclick = () => { saveVoice(); const was=voiceOn; voiceOn=tru
 let olPoll = 0;
 function olModeUI(){
   const m = $('#s-olmode').value, mac = m !== 'graph';
-  $('#s-graph-box').hidden = mac;
-  $('#s-ol-connect').textContent = m === 'graph' ? 'Connect Outlook' : m === 'file' ? 'Check schedule file' : 'Check Outlook';
-  $('#s-ol-help').textContent = m === 'file'
+  $('#s-graph-box').hidden = mac; $('#s-gmail-box').hidden = m !== 'gmail';
+  $('#s-ol-connect').textContent = m === 'graph' ? 'Connect Outlook' : m === 'file' ? 'Check schedule file' : m === 'gmail' ? 'Connect Gmail' : 'Check Outlook';
+  $('#s-ol-help').textContent = m === 'gmail'
+    ? 'Jarvis reads your last 3 days of Gmail and sent mail every 5 minutes. Approve and send sends through Gmail. Save to drafts puts the reply in your Gmail Drafts. Time blocks you approve are kept in Jarvis (and shown with your Google events), not written to Google Calendar.'
+    : m === 'file'
     ? 'Jarvis reads schedule.json (and optional demo_mail.json) from your IBM Drop folder. Nothing is sent from this mode: Approve only records your approval.'
     : mac
     ? 'Jarvis reads the Outlook app already open on this Mac, using your signed-in account. The first time, macOS asks to let Terminal control Outlook: click OK. Replies you approve are sent from Outlook; "Save to Outlook drafts" opens the reply for you to finish.'
@@ -641,7 +651,8 @@ async function refreshOutlook(){
 }
 $('#s-ol-connect').onclick = async () => {
   try {
-    await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook}}});
+    await api('/api/settings', {method:'POST', body:{patch:{outlook:collect().outlook, gmail:collect().gmail}, gmail_password: $('#s-gpw').value || null, gmail_ical: $('#s-gical').value || null}});
+    $('#s-gpw').value=''; $('#s-gical').value='';
     const r = await api('/api/outlook/connect', {method:'POST'});
     if ($('#s-olmode').value !== 'graph') { $('#s-ol-result').textContent = ''; refreshOutlook(); return; }
     $('#s-ol-result').innerHTML = `Open <a href="${esc(r.url)}" target="_blank" style="color:var(--arc)">${esc(r.url)}</a> and enter <span class="code">${esc(r.user_code)}</span>`;

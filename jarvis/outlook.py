@@ -208,24 +208,29 @@ def g_create_event(subject, start, end):
                                 "end": {"dateTime": end, "timeZone": tz}, "showAs": "busy"})
 
 
-# ---------- mode switch: "mac" (Outlook app on this Mac, no registration) or "graph" (Microsoft Graph) ----------
+# ---------- mode switch: "mac" (Outlook app), "file" (schedule file), "gmail" (personal Gmail), "graph" (Microsoft Graph) ----------
 import json as _json
 from . import outlook_mac as mac
 from . import outlook_file as fil
+from . import outlook_gmail as gm
 
 
 def mode():
     return settings()["outlook"].get("mode", "mac")
 
 
+def _pick(mac_f, fil_f, gm_f, g_f):
+    return {"mac": mac_f, "file": fil_f, "gmail": gm_f}.get(mode(), g_f)
+
+
 def status():
-    st = mac.status() if mode() == "mac" else fil.status() if mode() == "file" else g_status()
+    st = _pick(mac.status, fil.status, gm.status, g_status)()
     st["mode"] = mode()
     return st
 
 
 def start_sign_in():
-    return mac.connect() if mode() == "mac" else fil.connect() if mode() == "file" else g_start_sign_in()
+    return _pick(mac.connect, fil.connect, gm.connect, g_start_sign_in)()
 
 
 def sign_out():
@@ -234,15 +239,15 @@ def sign_out():
 
 
 def sync_mail(days=3):
-    return mac.sync_mail(days) if mode() == "mac" else fil.sync_mail(days) if mode() == "file" else g_sync_mail(days)
+    return _pick(mac.sync_mail, fil.sync_mail, gm.sync_mail, g_sync_mail)(days)
 
 
 def events(day=None):
-    return mac.events(day) if mode() == "mac" else fil.events(day) if mode() == "file" else g_events(day)
+    return _pick(mac.events, fil.events, gm.events, g_events)(day)
 
 
 def create_reply_draft(message_id, body, reply_all=False):
-    if mode() in ("mac", "file"):   # nothing is created yet: the reply is made when you send or open it
+    if mode() in ("mac", "file", "gmail"):   # nothing is created yet: the reply is made when you send or open it
         return _json.dumps({"mac": 1, "id": message_id, "body": body, "all": reply_all})
     return g_create_reply_draft(message_id, body, reply_all)
 
@@ -250,31 +255,33 @@ def create_reply_draft(message_id, body, reply_all=False):
 def send_draft(draft_id):
     if mode() == "file":
         return   # file mode never sends anything
-    if mode() == "mac":
+    if mode() in ("mac", "gmail"):
         d = _json.loads(draft_id)
-        mac.reply(d["id"], d["body"], d["all"], send=True)
+        (mac if mode() == "mac" else gm).reply(d["id"], d["body"], d["all"], send=True)
     else:
         g_send_draft(draft_id)
 
 
 def open_draft(draft_id):
-    """'Save to Outlook drafts': in Mac mode this opens the reply window in Outlook for you to finish."""
-    if mode() == "mac":
+    """'Save to drafts': Mac mode opens the reply in Outlook; Gmail mode saves it in your Gmail Drafts."""
+    if mode() in ("mac", "gmail"):
         d = _json.loads(draft_id)
-        mac.reply(d["id"], d["body"], d["all"], send=False)
+        (mac if mode() == "mac" else gm).reply(d["id"], d["body"], d["all"], send=False)
 
 
 def send_mail(to, subject, body):
     if mode() == "file":
         return
-    return mac.send_mail(to, subject, body) if mode() == "mac" else g_send_mail(to, subject, body)
+    return _pick(mac.send_mail, None, gm.send_mail, g_send_mail)(to, subject, body)
 
 
 def create_event(subject, start, end):
-    return mac.create_event(subject, start, end) if mode() == "mac" else fil.create_event(subject, start, end) if mode() == "file" else g_create_event(subject, start, end)
+    return _pick(mac.create_event, fil.create_event, gm.create_event, g_create_event)(subject, start, end)
 
 
 def my_address():
+    if mode() == "gmail":
+        return gm._addr() or None
     if mode() == "mac":
         return settings().get("email") or None
     return _get("/me").get("mail")

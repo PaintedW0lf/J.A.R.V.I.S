@@ -8,3 +8,5 @@ pypdf>=4.0
 beautifulsoup4>=4.12
 openpyxl>=3.1
 keyring>=25
+icalendar>=5.0
+recurring-ical-events>=2.1

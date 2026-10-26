@@ -34,6 +34,7 @@ DEFAULTS = {
         "auth": "x-api-key",       # or "bearer" for gateways that want Authorization: Bearer <key>
     },
     "email": "",                   # your work address; only used to email the morning brief to yourself
+    "gmail": {"address": ""},      # personal Gmail (App Password and calendar link live in the Keychain)
     "outlook": {
         "mode": "mac",             # "mac" = the Outlook app on this Mac (no registration); "graph" = Microsoft Graph
         "client_id": "",           # from your Azure / Entra app registration

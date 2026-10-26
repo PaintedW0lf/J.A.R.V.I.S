@@ -294,8 +294,8 @@ def approve_draft(draft_id, body):
 def save_to_outlook_drafts(draft_id, body):
     d = db.q("SELECT * FROM drafts WHERE id=?", (draft_id,))[0]
     oid = outlook.create_reply_draft(d["ref_id"], body, reply_all=d["kind"] == "nudge")
-    if outlook.mode() in ("mac",):
-        outlook.open_draft(oid)   # opens the reply in Outlook for you to finish
+    if outlook.mode() in ("mac", "gmail"):
+        outlook.open_draft(oid)   # Mac: opens the reply in Outlook. Gmail: saves it to your Gmail Drafts
     db.x("UPDATE drafts SET status='saved', body=? WHERE id=?", (body, draft_id))
 
 

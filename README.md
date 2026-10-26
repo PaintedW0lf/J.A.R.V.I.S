@@ -69,6 +69,15 @@ If it fails:
 
 **Demo or no-Outlook mode: schedule file.** In Settings → Outlook choose *Schedule file*. Jarvis reads `schedule.json` (and optionally `demo_mail.json`) from your IBM Drop folder, so you can show or use it with no Outlook connection at all. Examples are in the `demo/` folder. Nothing is ever sent in this mode.
 
+**Personal Gmail (no approval needed).** In Settings → Outlook choose *Personal Gmail*.
+
+1. Turn on 2-Step Verification for your Google account, then create an App Password at myaccount.google.com/apppasswords (16 letters).
+2. In Gmail: Settings → See all settings → Forwarding and POP/IMAP → enable IMAP.
+3. Paste your Gmail address and the App Password in Jarvis. For your calendar (optional), copy "Secret address in iCal format" from Google Calendar → Settings → your calendar → Integrate calendar.
+4. Click **Connect Gmail**.
+
+Jarvis reads the last 3 days of Inbox and 14 days of Sent. **Approve and send** sends through Gmail; **Save to drafts** puts the reply in your Gmail Drafts. Calendar is read-only: blocks you approve are kept in Jarvis (`schedule.json`), not written to Google Calendar. The App Password is stored in your Mac Keychain, and you can revoke it any time in your Google account.
+
 **Alternative: Microsoft sign-in (only if IBM approves an app).** Choose "Microsoft sign-in" in Settings. It needs an Entra app registration (public client, delegated `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `User.Read`) and likely IBM admin consent. Paste the client and tenant IDs, then click **Connect Outlook**.
 
 ## 3. Connect IBM Goals, MyScore and YourLearning

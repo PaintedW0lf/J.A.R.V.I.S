@@ -52,12 +52,14 @@ def index():
 class SettingsIn(BaseModel):
     patch: dict = {}
     ai_key: str | None = None
+    gmail_password: str | None = None
+    gmail_ical: str | None = None
 
 
 @app.get("/api/settings")
 def get_settings():
     s = settings()
-    return {**s, "ai_key_set": has_secret("ai_key"), "ai_ready": ai.configured(),
+    return {**s, "ai_key_set": has_secret("ai_key"), "ai_ready": ai.configured(), "gmail_pw_set": has_secret("gmail_app_password"), "gmail_ical_set": has_secret("gmail_ical_url"),
             "drop_folder_resolved": str(drop_folder())}
 
 
@@ -68,6 +70,11 @@ def post_settings(body: SettingsIn):
     where = None
     if body.ai_key is not None:
         where = set_secret("ai_key", body.ai_key.strip())
+    if body.gmail_password:
+        set_secret("gmail_app_password", body.gmail_password.strip())
+    if body.gmail_ical is not None and (body.gmail_ical.strip() or body.gmail_ical == ""):
+        if body.gmail_ical.strip():
+            set_secret("gmail_ical_url", body.gmail_ical.strip())
     if "brief_time" in body.patch:
         schedule()
     return {**get_settings(), "key_saved_in": where}
