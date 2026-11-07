@@ -1,6 +1,7 @@
 # J.A.R.V.I.S.
 
-Your proactive work assistant. It reads your IBM Outlook, flags what needs you, tracks replies you're waiting on, reads your calendar, follows your IBM Goals, MyScore and YourLearning, and has a morning brief ready at 6:30. It drafts replies, but **nothing is sent or added to your calendar until you approve it.**
+J.A.R.V.I.S: a proactive, voice-enabled personal AI work assistant, It reads your IBM Outlook, flags what needs you, tracks replies you're waiting on, reads your calendar, follows your IBM Goals, MyScore and YourLearning, and has a morning brief ready at 6:30. It drafts replies, but **nothing is sent or added to your calendar until you approve it.**  
+You can find the documents in the docs/badge section 
 
 ## How it runs
 
